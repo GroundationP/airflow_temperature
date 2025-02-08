@@ -18,6 +18,7 @@ from airflow.operators.dummy import DummyOperator
 import warnings
 warnings.filterwarnings('ignore')
 
+
 # Define the function to fetch API data and save it
 def fetch_and_save_api_data(cities, file_path, seconds, nb_times):
     for i in range(0, nb_times):
@@ -25,7 +26,6 @@ def fetch_and_save_api_data(cities, file_path, seconds, nb_times):
         #output_path = file_path+"/{}.json".format(current_dateTime).replace(":", "_")
         output_path = file_path+"/{}.json".format(current_dateTime).replace(":", "_")
         copil_weather = []
-   
         for c in cities:
             print(c)
             url = "https://api.openweathermap.org/data/2.5/weather?q={}&appid=d9ba4c2a667010dd354052fa57ec71a8".format(c)
@@ -36,29 +36,23 @@ def fetch_and_save_api_data(cities, file_path, seconds, nb_times):
                 copil_weather.append(city_weather)
             else:
                 raise Exception(f"Failed to fetch data: {response.status_code}, {response.text}")
-                
         #print(copil_weather)
         #os.makedirs(os.path.dirname(output_path), exist_ok=True)  # Ensure directory exists
         #with open(f"/opt/airflow/raw_data/terence_apaga_{current_dateTime}.json", "w") as json_file:
         with open(output_path, "w") as json_file:
             json.dump(copil_weather, json_file, indent=4)
-        
         print(f"Data saved to {output_path}")
         time.sleep(seconds)
         
-
 #### Transformer les données
 def transform_data_into_csv(n_files=None, filename='data.csv'):
     parent_folder = "/opt/airflow/raw_data"
     files = sorted(os.listdir(parent_folder), reverse=True)
     files = [f for f in files if f[-5:] == '.json']
     files = [f for f in files if f[:4]=='2025']    
-    
     if n_files:
         files = files[:n_files]
-
     dfs = []
-
     for f in files:
         print(f)
         with open(os.path.join(parent_folder, f), 'r') as file:
@@ -113,33 +107,25 @@ def prepare_data(task_instance, path_to_data='/opt/airflow/clean_data/fulldata.c
     dfs = []
     for c in df['city'].unique():
         df_temp = df[df['city'] == c]
-
         # creating target
         df_temp.loc[:, 'target'] = df_temp['temperature'].shift(1)
-
         # creating features
         for i in range(1, 10):
             df_temp.loc[:, 'temp_m-{}'.format(i)
                         ] = df_temp['temperature'].shift(-i)
-
         # deleting null values
         df_temp = df_temp.dropna()
-
         dfs.append(df_temp)
-
     # concatenating datasets
     df_final = pd.concat(
         dfs,
         axis=0,
         ignore_index=False
     )
-
     # deleting date variable
     df_final = df_final.drop(['date'], axis=1)
-
     # creating dummies for city variable
     df_final = pd.get_dummies(df_final)
-
     features = df_final.drop(['target'], axis=1)
     target = df_final['target']    
     features_json = features.to_json(orient="records")
@@ -147,9 +133,7 @@ def prepare_data(task_instance, path_to_data='/opt/airflow/clean_data/fulldata.c
     task_instance.xcom_push(key="X_train", value=features_json)
     task_instance.xcom_push(key="Y_train", value=target_json)
 
-    
 #===================== DAGS ==========================
-
 
 # Define default arguments for the DAG
 default_args = {
@@ -159,7 +143,6 @@ default_args = {
     "retries": 1,
     "retry_delay": timedelta(minutes=0.2),
 }
-
 # Define DAG
 with DAG(
     "weather_forecast",
@@ -167,11 +150,9 @@ with DAG(
     schedule_interval="@daily",  # Set your desired schedule
     catchup=False,
 ) as dag:
-
     #output_file = "/Users/terence/A_NOTEBOOKS/Datasciencetest/AIRFLOW/evaluation_meteo/app/raw_files"
     output_file = "/opt/airflow/raw_data"
     cities = ['paris', 'london', 'washington']
-
     # Define the task
     fetch_api_data_task_1 = PythonOperator(
         task_id="fetch_api_data",
@@ -179,22 +160,19 @@ with DAG(
         op_kwargs={'cities': cities, 'file_path': output_file, 'seconds': 2, 'nb_times':20},
         dag=dag,
     )
-    
     prepare_modeldata_task_4 = PythonOperator(
         task_id="prepare_api_data_2",
         python_callable=prepare_data,
         provide_context=True,
         op_kwargs={'path_to_data': '/opt/airflow/clean_data/fulldata.csv'},
         dag=dag,
-        )
-        
+        )   
     compare_model_task = PythonOperator(
         task_id="comparing_regression",
         python_callable=compare_perf,
         provide_context=True,
         dag=dag,
         )
-        
     with TaskGroup('transforming_data') as group_A:
         transform_data_task_2 = PythonOperator(
             task_id="transform_api_data_1",
@@ -202,14 +180,12 @@ with DAG(
             op_kwargs={'n_files': 20, 'filename': 'data.csv'},
             dag=dag,
             )
-    
         transform_data_task_3 = PythonOperator(
             task_id="transform_api_data_2",
             python_callable=transform_data_into_csv,
             op_kwargs={'n_files': None, 'filename': 'fulldata.csv'},
             dag=dag,
             )
-    
     with TaskGroup('training_model') as group_B:
         train_model_task_41 = PythonOperator(
             task_id="train_linear_regression",
@@ -218,7 +194,6 @@ with DAG(
             provide_context=True,
             dag=dag,
             )
-    
         train_model_task_42 = PythonOperator(
             task_id="train_DecTree_regression",
             python_callable=compute_model_score,
@@ -226,7 +201,6 @@ with DAG(
             provide_context=True,
             dag=dag,
             )
-    
         train_model_task_43 = PythonOperator(
             task_id="train_RandFores_regression",
             python_callable=compute_model_score,
@@ -234,10 +208,6 @@ with DAG(
             provide_context=True,
             dag=dag,
             )
-    
-
-
-    
     # Set task dependencies (if needed)
     fetch_api_data_task_1 >> transform_data_task_2
     fetch_api_data_task_1 >> transform_data_task_3
@@ -246,95 +216,3 @@ with DAG(
     prepare_modeldata_task_4 >> train_model_task_42 >> compare_model_task
     prepare_modeldata_task_4 >> train_model_task_43 >> compare_model_task
     
-
-
-
-
-
-"""
-#=> no task group
-# Define DAG
-dag = DAG(
-    "weather_forecast",
-    default_args=default_args,
-    schedule_interval="@daily",  # Set your desired schedule
-    catchup=False,
-)
-
-#output_file = "/Users/terence/A_NOTEBOOKS/Datasciencetest/AIRFLOW/evaluation_meteo/app/raw_files"
-output_file = "/opt/airflow/raw_data"
-cities = ['paris', 'london', 'washington']
-
-# Define the task
-fetch_api_data_task_1 = PythonOperator(
-    task_id="fetch_api_data",
-    python_callable=fetch_and_save_api_data,
-    op_kwargs={'cities': cities, 'file_path': output_file, 'seconds': 2, 'nb_times':2},
-    dag=dag,
-)
-
-transform_data_task_2 = PythonOperator(
-    task_id="transform_api_data_1",
-    python_callable=transform_data_into_csv,
-    op_kwargs={'n_files': 20, 'filename': 'data.csv'},
-    dag=dag,
-)
-
-transform_data_task_3 = PythonOperator(
-    task_id="transform_api_data_2",
-    python_callable=transform_data_into_csv,
-    op_kwargs={'n_files': None, 'filename': 'fulldata.csv'},
-    dag=dag,
-)
-
-prepare_modeldata_task_4 = PythonOperator(
-    task_id="prepare_api_data_2",
-    python_callable=prepare_data,
-    provide_context=True,
-    op_kwargs={'path_to_data': '/opt/airflow/clean_data/fulldata.csv'},
-    dag=dag,
-)
-
-
-train_model_task_41 = PythonOperator(
-    task_id="train_linear_regression",
-    python_callable=compute_model_score,
-    op_kwargs={'model': LinearRegression()},
-    provide_context=True,
-    dag=dag,
-)
-
-train_model_task_42 = PythonOperator(
-    task_id="train_DecTree_regression",
-    python_callable=compute_model_score,
-    op_kwargs={'model': DecisionTreeRegressor()},
-    provide_context=True,
-    dag=dag,
-)
-
-train_model_task_43 = PythonOperator(
-    task_id="train_RandFores_regression",
-    python_callable=compute_model_score,
-    op_kwargs={'model': RandomForestRegressor()},
-    provide_context=True,
-    dag=dag,
-)
-
-compare_model_task = PythonOperator(
-    task_id="comparing_regression",
-    python_callable=compare_perf,
-    provide_context=True,
-    dag=dag,
-)
-
-# Set task dependencies (if needed)
-fetch_api_data_task_1 >> transform_data_task_2
-fetch_api_data_task_1 >> transform_data_task_3
-transform_data_task_3 >> prepare_modeldata_task_4
-prepare_modeldata_task_4 >> train_model_task_41
-prepare_modeldata_task_4 >> train_model_task_42
-prepare_modeldata_task_4 >> train_model_task_43
-compare_model_task << train_model_task_41
-compare_model_task << train_model_task_42
-compare_model_task << train_model_task_43
-"""
