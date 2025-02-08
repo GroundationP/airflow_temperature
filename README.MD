@@ -5,6 +5,7 @@ The process begins by retrieving real-time weather data from OpenWeatherMap for 
 
 The next step is to extract these JSON files and consolidate them into a single CSV file, transforming them into a dataset for training and testing. For the modeling stage, we illustrate the predictive capabilities of both linear and non-linear models without using hyperparameter tuning. Based on the lowest Mean Squared Error (MSE), the pipeline selects the best-performing model, generates the desired predictions, and exports the most effective model.
 
+
 #### Setup from command line
 mkdir airflow_tempw
 
