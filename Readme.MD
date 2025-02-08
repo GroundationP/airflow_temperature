@@ -30,7 +30,7 @@ http://localhost:8080/home
 #### To identify docker worker (find Container ID)
 docker ps
 
-# to open terminal in docker worker
+#### to open terminal in docker worker
 docker exec -it Container_ID /bin/bash (example)
 
 docker exec -it 4255b3ce0595 /bin/bash
