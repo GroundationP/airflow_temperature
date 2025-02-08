@@ -28,7 +28,7 @@ def fetch_and_save_api_data(cities, file_path, seconds, nb_times):
         copil_weather = []
         for c in cities:
             print(c)
-            url = "https://api.openweathermap.org/data/2.5/weather?q={}&appid=d9ba4c2a667010dd354052fa57ec71a8".format(c)
+            url = "https://api.openweathermap.org/data/2.5/weather?q={}&appid=KEY_ID".format(c)
             # Replace with your API endpoint
             response = requests.get(url)
             if response.status_code == 200:
