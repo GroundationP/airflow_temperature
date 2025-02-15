@@ -39,4 +39,5 @@ docker exec -it 4255b3ce0595 /bin/bash
 ```
 mkdir raw_data
 ```
+```
 mkdir clean_data
